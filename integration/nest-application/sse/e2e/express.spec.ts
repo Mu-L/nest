@@ -1,3 +1,4 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { expect } from 'chai';
@@ -15,6 +16,7 @@ describe('Sse (Express Application)', () => {
       }).compile();
 
       app = moduleFixture.createNestApplication<NestExpressApplication>();
+      app.useGlobalPipes(new ValidationPipe({ transform: true }));
 
       await app.listen(3000);
       const url = await app.getUrl();
@@ -48,6 +50,22 @@ describe('Sse (Express Application)', () => {
         done();
       });
     });
+
+    it('returns a validation error status before opening the SSE stream', async () => {
+      const response = await fetch(
+        `${await app.getUrl()}/sse/validated?limit=invalid`,
+        {
+          headers: {
+            accept: 'text/event-stream',
+          },
+        },
+      );
+
+      expect(response.status).to.equal(400);
+      expect(response.headers.get('content-type')).to.contain(
+        'application/json',
+      );
+    });
   });
 
   describe('with forceCloseConnections', () => {
@@ -59,6 +77,7 @@ describe('Sse (Express Application)', () => {
       app = moduleFixture.createNestApplication<NestExpressApplication>({
         forceCloseConnections: true,
       });
+      app.useGlobalPipes(new ValidationPipe({ transform: true }));
 
       await app.listen(3000);
       const url = await app.getUrl();
@@ -88,6 +107,22 @@ describe('Sse (Express Application)', () => {
         });
         done();
       });
+    });
+
+    it('returns a validation error status before opening the SSE stream', async () => {
+      const response = await fetch(
+        `${await app.getUrl()}/sse/validated?limit=invalid`,
+        {
+          headers: {
+            accept: 'text/event-stream',
+          },
+        },
+      );
+
+      expect(response.status).to.equal(400);
+      expect(response.headers.get('content-type')).to.contain(
+        'application/json',
+      );
     });
   });
 });

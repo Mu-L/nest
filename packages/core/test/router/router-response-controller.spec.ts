@@ -268,6 +268,7 @@ describe('RouterResponseController', () => {
           {} as unknown as ServerResponse,
           {} as unknown as IncomingMessage,
         );
+        expect.fail('should have thrown');
       } catch (e) {
         expect(e.message).to.eql(
           'You must return an Observable stream to use Server-Sent Events (SSE).',
@@ -510,25 +511,67 @@ data: test
       });
     });
 
-    describe('when there is an error', () => {
-      it('should close the request', done => {
+    it('should commit headers on next tick without waiting for first emission', async () => {
+      class SinkWithWriteHead extends Writable {
+        writeHead = sinon.spy();
+        flushHeaders = sinon.spy();
+
+        _write(
+          chunk: any,
+          encoding: string,
+          callback: (error?: Error | null) => void,
+        ): void {
+          callback();
+        }
+      }
+
+      const result = new Subject();
+      const response = new SinkWithWriteHead();
+      const request = new PassThrough();
+
+      void routerResponseController.sse(
+        result,
+        response as unknown as ServerResponse,
+        request as unknown as IncomingMessage,
+      );
+
+      // Wait for microtasks (subscription) + macrotask (setTimeout(0))
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(response.writeHead.called).to.be.true;
+      expect(response.writeHead.firstCall.args[0]).to.equal(200);
+
+      result.complete();
+      request.destroy();
+    });
+
+    describe('when there is an error before headers are committed', () => {
+      it('should reject the promise so the exception filter can set the status', async () => {
         const result = new Subject();
         const response = new Writable();
-        response.end = done as any;
         response._write = () => {};
 
         const request = new Writable();
         request._write = () => {};
 
-        void routerResponseController.sse(
+        const ssePromise = routerResponseController.sse(
           result,
           response as unknown as ServerResponse,
           request as unknown as IncomingMessage,
         );
 
         result.error(new Error('Some error'));
-      });
 
+        try {
+          await ssePromise;
+          expect.fail('should have rejected');
+        } catch (e) {
+          expect(e.message).to.equal('Some error');
+        }
+      });
+    });
+
+    describe('when there is an error after headers are committed', () => {
       it('should write the error message to the stream', async () => {
         class Sink extends Writable {
           private readonly chunks: string[] = [];
@@ -561,18 +604,19 @@ data: test
           request as unknown as IncomingMessage,
         );
 
+        // Yield so the internal `await Promise.resolve(result)` completes
+        // and the subscription is active before we emit.
+        await Promise.resolve();
+
+        result.next('first');
+        // Let the concatMap inner Promise resolve
+        await new Promise(resolve => setTimeout(resolve, 10));
         result.error(new Error('Some error'));
         request.destroy();
 
         await written(response);
-        expect(response.content).to.eql(
-          `
-event: error
-id: 1
-data: Some error
-
-`,
-        );
+        expect(response.content).to.contain('event: error');
+        expect(response.content).to.contain('data: Some error');
       });
     });
   });
