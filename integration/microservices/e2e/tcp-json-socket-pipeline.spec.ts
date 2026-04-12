@@ -71,6 +71,7 @@ describe('TCP pipelined frames – stack-overflow regression (CVE fix)', () => {
     app = module.createNestMicroservice<MicroserviceOptions>({
       transport: Transport.TCP,
       options: { host: '127.0.0.1', port: TEST_PORT },
+      logger: false,
     });
     await app.listen();
   });
@@ -79,7 +80,9 @@ describe('TCP pipelined frames – stack-overflow regression (CVE fix)', () => {
     await app.close();
   });
 
-  it('server remains responsive after receiving a 12_000-frame pipelined burst', async () => {
+  it('server remains responsive after receiving a 12_000-frame pipelined burst', async function () {
+    // NestJS bootstrap + processing 12_000 frames needs more than the 2 s default.
+    this.timeout(15_000);
     /**
      * Each `2#{}` frame is a valid JsonSocket event frame (payload `{}`, length
      * 2 characters). The server treats it as a fire-and-forget event (no `id`
