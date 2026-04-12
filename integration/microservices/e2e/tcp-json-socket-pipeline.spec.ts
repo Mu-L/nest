@@ -4,16 +4,6 @@
  * Vulnerability: handleData() called itself recursively once per fully-received
  * frame, causing RangeError: Maximum call stack size exceeded for payloads with
  * many back-to-back frames (e.g. `"2#{}" * 12_000`).
- *
- * Fix: recursive call replaced with an iterative while-loop in
- * packages/microservices/helpers/json-socket.ts
- *
- * This test:
- *  1. Starts a real NestJS TCP microservice on a local port.
- *  2. Opens a raw net.Socket and sends a~47 KB burst of 12_000 pipelined frames.
- *  3. Follows the burst with a properly-formed request frame.
- *  4. Asserts the server responds correctly to the request, proving it survived
- *     the burst without crashing.
  */
 import { Controller, INestMicroservice } from '@nestjs/common';
 import {
@@ -25,8 +15,6 @@ import { Test } from '@nestjs/testing';
 import { expect } from 'chai';
 import * as net from 'net';
 
-// ── Minimal in-process microservice controller ────────────────────────────────
-
 @Controller()
 class PingController {
   @MessagePattern({ cmd: 'ping' })
@@ -35,9 +23,6 @@ class PingController {
   }
 }
 
-// ── Wire-protocol helpers ─────────────────────────────────────────────────────
-
-/** Build `"<len>#<json>"` exactly as JsonSocket.formatMessageData does. */
 function frame(obj: unknown): string {
   const json = JSON.stringify(obj);
   return `${json.length}#${json}`;
@@ -73,12 +58,6 @@ function parseFrames(raw: string): {
   return { frames, remaining: buf };
 }
 
-// ── Test suite ────────────────────────────────────────────────────────────────
-
-/**
- * Port chosen to avoid clashing with the default TCP_DEFAULT_PORT (3000) and
- * the TLS / Redis / NATS ports used by other integration suites.
- */
 const TEST_PORT = 4500;
 
 describe('TCP pipelined frames – stack-overflow regression (CVE fix)', () => {
@@ -105,11 +84,6 @@ describe('TCP pipelined frames – stack-overflow regression (CVE fix)', () => {
      * Each `2#{}` frame is a valid JsonSocket event frame (payload `{}`, length
      * 2 characters). The server treats it as a fire-and-forget event (no `id`
      * field → no response), so no back-pressure from server replies.
-     *
-     * Before the fix, the 12_000th recursive handleData() call would cause:
-     *   RangeError: Maximum call stack size exceeded
-     * The TcpSocket.onData catch block would then emit 'error' and call
-     * socket.end(), closing the connection before we receive the pong.
      */
     const FRAME_COUNT = 12_000;
     const burstFrame = '2#{}';
@@ -125,7 +99,6 @@ describe('TCP pipelined frames – stack-overflow regression (CVE fix)', () => {
       id: 'integration-test-ping',
     });
 
-    // Sanity-check our helper against the manually-computed value
     expect(pingFrame).to.equal(`${pingPayload.length}#${pingPayload}`);
 
     await new Promise<void>((resolve, reject) => {

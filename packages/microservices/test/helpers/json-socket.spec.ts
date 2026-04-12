@@ -5,7 +5,6 @@ import { CorruptedPacketLengthException } from '../../errors/corrupted-packet-le
 import { MaxPacketLengthExceededException } from '../../errors/max-packet-length-exceeded.exception';
 import { JsonSocket } from '../../helpers/json-socket';
 
-/** Minimal socket stub – just enough for TcpSocket's constructor and emitMessage. */
 function makeSocketStub(): any {
   const emitter = new EventEmitter();
   return Object.assign(emitter, {
@@ -15,7 +14,6 @@ function makeSocketStub(): any {
   });
 }
 
-/** Build a single framed message as the wire format: "<len>#<json>" */
 function frame(obj: unknown): string {
   const json = JSON.stringify(obj);
   return `${json.length}#${json}`;
@@ -66,8 +64,6 @@ describe('JsonSocket', () => {
   describe('handleData – pipelined messages (stack-overflow regression)', () => {
     it('processes many small pipelined frames without a stack overflow', () => {
       /**
-       * Regression test for CVE / CVSS 7.5 – recursive handleData() call.
-       *
        * A payload of `"2#{}" * 12_000` (~47 KB) used to trigger
        * "RangeError: Maximum call stack size exceeded" because each
        * framed message caused a recursive call back into handleData().
