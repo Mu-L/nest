@@ -188,6 +188,49 @@ data: hello
     sse.pipe(sink);
   });
 
+  it('preserves explicit id of 0 in writeMessage', async () => {
+    const sse = new SseStream();
+    const sink = new Sink();
+    sse.pipe(sink);
+
+    sse.writeMessage(
+      {
+        id: '0',
+        data: 'first',
+      },
+      noop,
+    );
+    sse.end();
+    await written(sink);
+
+    expect(sink.content).to.equal(
+      `
+id: 0
+data: first
+
+`,
+    );
+  });
+
+  it('serializes id of 0 in _transform', async () => {
+    const sse = new SseStream();
+    const sink = new Sink();
+    sse.pipe(sink);
+
+    sse.writeMessage(
+      {
+        id: '0',
+        type: 'ping',
+        data: 'hello',
+      },
+      noop,
+    );
+    sse.end();
+    await written(sink);
+
+    expect(sink.content).to.contain('id: 0\n');
+  });
+
   it('allows an eventsource to connect', callback => {
     let sse: SseStream;
     const server = createServer((req, res) => {

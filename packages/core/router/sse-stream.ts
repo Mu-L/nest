@@ -101,7 +101,10 @@ export class SseStream extends Transform {
       String(val).replace(/[\r\n]/g, '');
 
     let data = message.type ? `event: ${sanitize(message.type)}\n` : '';
-    data += message.id ? `id: ${sanitize(message.id)}\n` : '';
+    data +=
+      message.id !== undefined && message.id !== null
+        ? `id: ${sanitize(message.id)}\n`
+        : '';
     data += message.retry ? `retry: ${sanitize(message.retry)}\n` : '';
     data += message.data ? toDataString(message.data) : '';
     data += '\n';
@@ -116,7 +119,7 @@ export class SseStream extends Transform {
     message: MessageEvent,
     cb: (error: Error | null | undefined) => void,
   ) {
-    if (!message.id) {
+    if (message.id === undefined || message.id === null) {
       this.lastEventId!++;
       message.id = this.lastEventId!.toString();
     }
