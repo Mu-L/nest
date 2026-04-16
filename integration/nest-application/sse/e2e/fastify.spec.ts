@@ -1,3 +1,4 @@
+import { ValidationPipe } from '@nestjs/common';
 import {
   FastifyAdapter,
   NestFastifyApplication,
@@ -20,6 +21,7 @@ describe('Sse (Fastify Application)', () => {
       app = moduleFixture.createNestApplication<NestFastifyApplication>(
         new FastifyAdapter(),
       );
+      app.useGlobalPipes(new ValidationPipe({ transform: true }));
 
       await app.listen(3000);
       const url = await app.getUrl();
@@ -53,6 +55,22 @@ describe('Sse (Fastify Application)', () => {
         done();
       });
     });
+
+    it('returns a validation error status before opening the SSE stream', async () => {
+      const response = await fetch(
+        `${await app.getUrl()}/sse/validated?limit=invalid`,
+        {
+          headers: {
+            accept: 'text/event-stream',
+          },
+        },
+      );
+
+      expect(response.status).to.equal(400);
+      expect(response.headers.get('content-type')).to.contain(
+        'application/json',
+      );
+    });
   });
 
   describe('with forceCloseConnections', () => {
@@ -66,6 +84,7 @@ describe('Sse (Fastify Application)', () => {
           forceCloseConnections: true,
         }),
       );
+      app.useGlobalPipes(new ValidationPipe({ transform: true }));
 
       await app.listen(3000);
       const url = await app.getUrl();
@@ -95,6 +114,22 @@ describe('Sse (Fastify Application)', () => {
         });
         done();
       });
+    });
+
+    it('returns a validation error status before opening the SSE stream', async () => {
+      const response = await fetch(
+        `${await app.getUrl()}/sse/validated?limit=invalid`,
+        {
+          headers: {
+            accept: 'text/event-stream',
+          },
+        },
+      );
+
+      expect(response.status).to.equal(400);
+      expect(response.headers.get('content-type')).to.contain(
+        'application/json',
+      );
     });
   });
 });

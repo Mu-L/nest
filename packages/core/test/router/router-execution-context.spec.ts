@@ -511,6 +511,43 @@ describe('RouterExecutionContext', () => {
           ),
         ).to.be.true;
       });
+
+      it('should pass through status and headers from the wrapper response at handle time', async () => {
+        const rawResponse = new PassThrough() as HeaderStream;
+        rawResponse.write = sinon.spy();
+        rawResponse.writeHead = sinon.spy();
+        rawResponse.flushHeaders = sinon.spy();
+
+        const response = {
+          raw: rawResponse,
+          statusCode: 203,
+          getHeaders: sinon
+            .stub()
+            .returns({ 'access-control-headers': 'at-handle-time' }),
+        };
+        const result = of('test');
+
+        const request = new PassThrough();
+        request.on = sinon.spy();
+
+        sinon.stub(contextCreator, 'reflectRenderTemplate').returns(undefined!);
+        sinon.stub(contextCreator, 'reflectSse').returns('/');
+
+        const handler = contextCreator.createHandleResponseFn(
+          null!,
+          true,
+          undefined,
+          200,
+        ) as HandlerResponseBasicFn;
+        await handler(result, response as any, request);
+
+        expect(
+          (rawResponse.writeHead as sinon.SinonSpy).calledWith(
+            203,
+            sinon.match.hasNested('access-control-headers', 'at-handle-time'),
+          ),
+        ).to.be.true;
+      });
     });
   });
 });
