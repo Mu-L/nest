@@ -5,9 +5,7 @@ import { expect } from 'chai';
 import * as request from 'supertest';
 import { RMQController } from '../src/rmq/rmq.controller';
 
-describe('RabbitMQ transport', function () {
-  this.timeout(10000);
-
+describe('RabbitMQ transport', () => {
   let server;
   let app: INestApplication;
 
@@ -22,9 +20,9 @@ describe('RabbitMQ transport', function () {
     app.connectMicroservice<MicroserviceOptions>({
       transport: Transport.RMQ,
       options: {
-        urls: [`amqp://0.0.0.0:5672`],
+        urls: [`amqp://localhost:5672`],
         queue: 'test',
-        queueOptions: { durable: false },
+        queueOptions: { durable: true },
         socketOptions: { noDelay: true },
       },
     });
@@ -84,7 +82,7 @@ describe('RabbitMQ transport', function () {
       .post('/multiple-urls')
       .send([1, 2, 3, 4, 5])
       .expect(200, '15');
-  });
+  }).timeout(10000);
 
   it(`/POST (event notification)`, done => {
     void request(server)
