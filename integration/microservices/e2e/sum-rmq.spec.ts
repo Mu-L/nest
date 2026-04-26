@@ -5,7 +5,9 @@ import { expect } from 'chai';
 import * as request from 'supertest';
 import { RMQController } from '../src/rmq/rmq.controller';
 
-describe('RabbitMQ transport', () => {
+describe('RabbitMQ transport', function () {
+  this.timeout(10000);
+
   let server;
   let app: INestApplication;
 
@@ -82,7 +84,7 @@ describe('RabbitMQ transport', () => {
       .post('/multiple-urls')
       .send([1, 2, 3, 4, 5])
       .expect(200, '15');
-  }).timeout(10000);
+  });
 
   it(`/POST (event notification)`, done => {
     void request(server)
