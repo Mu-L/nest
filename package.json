@@ -34,6 +34,7 @@
     "test:cov": "nyc mocha packages/**/*.spec.ts --reporter spec",
     "test:integration": "mocha --reporter-option maxDiffSize=0 \"integration/*/{,!(node_modules)/**/}/*.spec.ts\"",
     "test:docker:up": "node scripts/docker-compose.js -f integration/docker-compose.yml up -d",
+    "test:docker:wait:rmq": "node scripts/wait-for-rabbitmq.js",
     "test:docker:down": "node scripts/docker-compose.js -f integration/docker-compose.yml down",
     "lint": "concurrently 'npm run lint:packages' 'npm run lint:integration' 'npm run lint:spec'",
     "lint:fix": "concurrently 'npm run lint:packages -- --fix' 'npm run lint:integration -- --fix' 'npm run lint:spec -- --fix'",
