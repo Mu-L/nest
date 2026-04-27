@@ -2,6 +2,7 @@ import { assert, expect } from 'chai';
 import * as sinon from 'sinon';
 import { NO_MESSAGE_HANDLER, RQM_DEFAULT_QUEUE } from '../../constants';
 import { RmqContext } from '../../ctx-host';
+import { MessageHandler } from '../../interfaces/message-handler.interface';
 import { ServerRMQ } from '../../server/server-rmq';
 import { objectToMap } from './utils/object-to-map';
 
@@ -486,6 +487,25 @@ describe('ServerRMQ', () => {
         expect(matchRmqPattern('$SYS.#', '$SYS.broker.load.messages.received'))
           .to.be.true;
       });
+    });
+  });
+
+  describe('initializeWildcardHandlersIfExist', () => {
+    it('skips non-string handler keys without throwing', () => {
+      const handlers = new Map<unknown, MessageHandler>();
+      handlers.set(undefined, () => Promise.resolve());
+      handlers.set(0, () => Promise.resolve());
+      handlers.set('orders.*', () => Promise.resolve());
+      handlers.set('orders.created', () => Promise.resolve());
+      sinon
+        .stub(server, 'getHandlers')
+        .returns(handlers as Map<string, MessageHandler>);
+
+      expect(() =>
+        untypedServer.initializeWildcardHandlersIfExist(),
+      ).to.not.throw();
+      expect(untypedServer.wildcardHandlers.size).to.equal(1);
+      expect(untypedServer.wildcardHandlers.has('orders.*')).to.be.true;
     });
   });
 });
