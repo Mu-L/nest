@@ -440,6 +440,10 @@ export class ServerRMQ extends Server<RmqEvents, RmqStatus> {
     const handlers = this.getHandlers();
 
     handlers.forEach((handler, pattern) => {
+      if (typeof pattern !== 'string') {
+        return;
+      }
+
       if (
         pattern.includes(RMQ_WILDCARD_ALL) ||
         pattern.includes(RMQ_WILDCARD_SINGLE)
